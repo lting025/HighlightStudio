@@ -4,12 +4,9 @@
 
 整個分析都在瀏覽器內完成。聊天室檔案留在使用者的裝置上，可以離線使用，也可以把同一份網頁放上 GitHub Pages。
 
-## 第一次使用
+## 使用
 
-1. 完整解壓縮專案，雙擊 `docs/index.html`。頁面會自動載入一場 20 分鐘的示範直播。
-2. 在「候選精華」點選排名第一的片段，從「分數拆解」查看各項訊號貢獻了幾分。
-3. 勾選「疊圖比較均衡權重」，把「評分偏好」切換成「優先找情緒反應」。比較兩條曲線，就能看到哪些時段因為觀眾一起笑或驚呼而提高了排名。
-4. 按「選擇聊天室檔案」換成自己的資料。調整完入選門檻後，按「匯出 JSON」保存片段清單。若資料含可辨識的 YouTube 影片 ID，可按「回看此段」跳到對應時間。
+[開啟網站](https://lting025.github.io/HighlightStudio/)
 
 ## 準備聊天室紀錄
 
@@ -53,11 +50,3 @@ yt-dlp --skip-download --write-subs --sub-langs live_chat --no-playlist "直播�
 
 匯出的 JSON 包含分析參數、訊息總數，以及每段精華的排名、起訖秒數、分數與各項貢獻。`start` 和 `end` 是含前後保留時間的回看範圍；`window_start` 和 `window_end` 是實際算分的時段。
 
-## 發布到 GitHub Pages
-
-1. 將本 README 與整個 `docs/` 資料夾放在儲存庫根目錄，確認首頁路徑為 `docs/index.html`。
-2. 開啟儲存庫的 **Settings → Pages**，在 **Source** 選擇 **Deploy from a branch**。
-3. 選擇存放專案的分支（例如 `main`）及 **/docs**，按 **Save**。
-4. 部署完成後，從 Pages 設定頁開啟網站。訪客可以先玩示範資料，也可以匯入自己的聊天室紀錄。
-
-[GitHub Pages 發布來源設定說明](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
