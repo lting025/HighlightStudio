@@ -4,7 +4,7 @@ const model=StudioModel, colors=['#008470','#507cc5','#b36a20','#9771b5'];
 const cloneDefaults=()=>({...model.defaults,weights:[...model.defaults.weights]});
 const cfg=cloneDefaults();
 let reference=[],source=null, windows=[], result={points:[],clips:[]}, selected=0, sourceKind='demo';
-let backend=false, busy=false, recalculating=false, stopped=false, activeTab='url';
+let busy=false, recalculating=false;
 let sourceSerial=0, worker=null, localData=null, wordTimer;
 const presets={balanced:[40,30,25,5],burst:[65,20,12,3],reaction:[20,25,50,5]};
 const fmt=n=>Number(n).toLocaleString('zh-TW');
@@ -12,21 +12,17 @@ const clock=t=>{let n=Math.max(0,Math.floor(t)); return (n>=3600?Math.floor(n/36
 const el=(type,cls,text)=>{const n=document.createElement(type);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;};
 function status(message,error=false){const node=$('sourceState');node.textContent=message;node.hidden=!message;node.classList.toggle('error',error);}
 function locks(){
-  const blocked=busy||recalculating||stopped;
-  $('load').disabled=blocked||!backend;$('file').disabled=blocked;$('demoBtn').disabled=blocked;
+  const blocked=busy||recalculating;
+  $('file').disabled=blocked;
+  $('demoBtn').disabled=blocked;
   $('export').disabled=blocked||!source;
-  $('quit').disabled=blocked;
-  $('connectBtn').disabled=blocked||backend;
-  document.querySelectorAll('.params input,.params textarea,.params select,.params button').forEach(n=>n.disabled=busy||stopped);
-  document.querySelectorAll('[data-download]').forEach(n=>n.disabled=blocked||!backend);
+  document.querySelectorAll('.params input,.params textarea,.params select,.params button').forEach(n=>n.disabled=busy);
 }
 function tab(name){
-  activeTab=name;
   for(const b of document.querySelectorAll('[data-tab]')) b.setAttribute('aria-pressed',String(b.dataset.tab===name));
-  for(const [key,pane] of Object.entries({url:'urlPane',file:'filePane',demo:'demoPane'})) $(pane).hidden=name!==key;
-  if(!busy&&!recalculating){
-    status(name==='url'&&!backend?'請先連接雲端後端，或選擇匯入本機聊天室。':'');
-  }
+  $('filePane').hidden=name!=='file';
+  $('demoPane').hidden=name!=='demo';
+  if(!busy&&!recalculating) status('');
 }
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 function slider(parent,id,label,min,max,value,suffix,change,color) {
@@ -64,7 +60,7 @@ function accepted(payload){
   reference=windows.map(x=>x.signals.reduce((sum,value,i)=>sum+value*model.defaults.weights[i],0));
   if(payload.kind!=='features'){sourceKind=payload.kind==='demo'?'demo':payload.sourceKind;selected=-1;}
   $('title').textContent=source.title;$('messages').textContent=fmt(source.count);
-  $('sourceTag').textContent={demo:'示範資料',file:'匯入檔案',url:'YouTube 重播'}[sourceKind];
+  $('sourceTag').textContent={demo:'示範資料',file:'匯入檔案'}[sourceKind];
   if(payload.kind!=='features')status(source.skipped?'已略過 '+fmt(source.skipped)+' 筆無效紀錄。':'');
   rerank();locks();
 }
@@ -134,12 +130,6 @@ function drawList(){
     if(source.id){
       const actions=el('div','clip-actions'),link=el('a','','回看此段 ↗');
       link.target='_blank';link.rel='noopener noreferrer';link.href='https://www.youtube.com/watch?v='+source.id+'&t='+Math.floor(c.start)+'s';actions.append(link);
-      if(backend){
-        for(const [kind,text] of [['clip','產生 MP4'],['subtitles','產生 MP4＋SRT']]){
-          const button=el('button','',text);button.dataset.download='true';
-          button.onclick=()=>clip(c,kind);actions.append(button);
-        }
-      }
       div.append(actions);
     }
     list.append(div);
@@ -194,68 +184,18 @@ $('export').onclick=()=>{
       message_count:c.point.count,unique_users:c.point.users,contributions:Object.fromEntries(model.labels.map((k,i)=>[k,+c.point.parts[i].toFixed(3)]))}))};
   save(new Blob([JSON.stringify(summary,null,2)],{type:'application/json'}),(sourceKind==='demo'?'demo':source.id||'chat')+'-highlights.json');
 };
-async function clip(c,kind){
-  busy=true;locks();
-  const id=source.id, label=clock(c.start)+'–'+clock(c.end);
-  status('送出片段 '+label+'…');
-  try{
-    const job=await Cloud.job({kind,id,start:c.start,end:c.end},step=>status(label+' · '+step));
-    const row=el('div','download-row');
-    row.append(el('span','',source.title+' · '+label));
-    for(const ext of job.files){
-      const button=el('button','secondary','下載 '+ext.toUpperCase());
-      button.onclick=async()=>{
-        button.disabled=true;
-        try {save(await (await Cloud.file(job.id,ext)).blob(),'highlight-'+id+'-'+Math.floor(c.start)+'-'+Math.ceil(c.end)+'.'+ext);}
-        catch(e){status(e.message,true);}finally{button.disabled=false;}
-      };
-      row.append(button);
-    }
-    if(job.notice)row.append(el('p','caption',job.notice));
-    $('files').prepend(row);$('outputs').hidden=false;
-    status(job.notice||'處理完成，請在「完成的檔案」下載。');
-    $('outputs').scrollIntoView({block:'nearest'});
-  }catch(e){status(e.message,true);}finally{busy=false;locks();}
-}
-$('load').onclick=async()=>{
-  const id=model.videoId($('url').value.trim());
-  if(!id){status('請貼上有效的 YouTube 影片、直播或 youtu.be 網址。',true);return;}
-  busy=true;locks();status('正在讀取 YouTube 聊天室重播。長直播可能需要幾分鐘。');
-  try{
-    const job=await Cloud.job({kind:'chat',id},step=>status(step+'…'));
-    const r=await Cloud.file(job.id,'chat');
-    const meta={id,title:job.title||id,duration:job.duration};
-    const raw=await r.text();status('正在分析聊天室…');compute({kind:'source',sourceKind:'url',raw,meta});
-  }catch(e){busy=false;locks();status(e.message,true);}
-};
-$('url').onkeydown=e=>{if(e.key==='Enter'&&!$('load').disabled)$('load').click();};
 $('file').onchange=async()=>{
   const file=$('file').files[0];$('file').value='';if(!file)return;
   if(file.size>128*1024*1024){status('檔案超過 128 MiB，請分段後匯入。',true);return;}
   busy=true;locks();status('正在分析聊天室…');
-  try{const raw=await file.text();compute({kind:'source',sourceKind:'file',raw,meta:{title:file.name}});}
+  try{
+    const raw=await file.text();
+    const match=file.name.match(/\[([A-Za-z0-9_-]{11})\]\.live_chat\.json$/i);
+    compute({kind:'source',sourceKind:'file',raw,meta:{title:file.name,id:match?.[1]||''}});
+  }
   catch(e){busy=false;locks();status(e.message,true);}
 };
 $('demoBtn').onclick=()=>{busy=true;compute({kind:'demo'});};
-function updateConnection(connected){
-  backend=connected;
-  $('connection').textContent=connected?'雲端已連線':'雲端未連線';
-  $('quit').hidden=!connected;$('cloudForm').hidden=connected;
-  if(source)rerank();locks();
-}
-$('cloudForm').onsubmit=async event=>{
-  event.preventDefault();busy=true;locks();
-  const note=$('connectionState');note.classList.remove('connection-error');note.textContent='正在連線，首次啟動可能需要約一分鐘…';
-  try{
-    await Cloud.connect($('apiHost').value,$('apiKey').value);
-    $('apiKey').value='';updateConnection(true);tab('url');status('');
-    note.textContent='已連接 '+new URL($('apiHost').value).host;
-  }catch(e){updateConnection(false);note.textContent=e.message;note.classList.add('connection-error');}
-  finally{busy=false;locks();}
-};
-$('quit').onclick=()=>{
-  Cloud.disconnect();updateConnection(false);$('files').replaceChildren();$('outputs').hidden=true;
-  $('connectionState').textContent='已中斷連線。';tab('file');
-};
-$('apiHost').value=window.STUDIO_API_URL||'';
-updateConnection(false);tab('file');busy=true;compute({kind:'demo'});
+tab('file');
+busy=true;
+compute({kind:'demo'});

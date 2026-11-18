@@ -1,16 +1,10 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>拾刻｜直播精華工作台</title><link rel="stylesheet" href="style.css"><script defer src="model.js"></script><script defer src="config.js"></script><script defer src="cloud-api.js"></script><script defer src="app.js"></script></head>
-<body><header><div class="shell mast"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>拾刻 <span class="brand-en">Highlight Studio</span></div><div class="tools"><span id="connection">雲端未連線</span><button id="quit" hidden>中斷連線</button></div></div></header>
-<main class="shell"><div class="heading"><div><h1>直播精華工作台</h1><p>載入聊天室，從觀眾反應找到值得回看的時刻。</p></div></div>
-<section class="panel source" aria-label="雲端連線"><div class="panel-head"><h2>連接雲端後端</h2></div>
-<form id="cloudForm" class="cloud-form">
-<label>後端網址<input id="apiHost" type="url" required placeholder="https://你的服務名稱.onrender.com" autocomplete="off"></label>
-<label>連線金鑰<input id="apiKey" type="password" required placeholder="Render 的 STUDIO_KEY" autocomplete="off"></label>
-<button class="primary" id="connectBtn">連線</button></form>
-<p id="connectionState" class="caption" role="status">連線後可讀取 YouTube、匯出影片及產生字幕。</p></section>
-<section class="source panel" aria-label="聊天室來源"><div class="source-tabs" role="group" aria-label="選擇資料來源"><button data-tab="url" aria-pressed="true">YouTube 網址</button><button data-tab="file">匯入聊天室</button><button data-tab="demo">示範資料</button></div>
-<div id="urlPane" class="source-row"><label class="sr" for="url">YouTube 直播存檔網址</label><input id="url" type="url" placeholder="貼上 YouTube 直播存檔網址" autocomplete="off"><button class="primary" id="load">讀取聊天室</button></div>
-<div id="filePane" class="source-row" hidden><label class="filepick">選擇檔案<input type="file" id="file" accept=".json,.jsonl,.ndjson,application/json"></label><span>JSON 或 JSONL，最大 128 MiB</span></div>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>拾刻｜直播聊天室分析</title><link rel="stylesheet" href="style.css"><script defer src="model.js"></script><script defer src="app.js"></script></head>
+<body><header><div class="shell mast"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>拾刻 <span class="brand-en">Highlight Studio</span></div></div></header>
+<main class="shell"><div class="heading"><div><h1>直播聊天室分析</h1><p>載入聊天室，從觀眾反應找到值得回看的時刻。</p></div></div>
+<section class="source panel" aria-label="聊天室來源"><div class="source-tabs" role="group" aria-label="選擇資料來源"><button data-tab="file" aria-pressed="true">匯入聊天室</button><button data-tab="demo">示範資料</button></div>
+<div id="filePane"><div class="source-row"><label class="filepick">選擇聊天室檔案<input type="file" id="file" accept=".json,.jsonl,.ndjson,application/json"></label><span>JSON 或 JSONL，最大 128 MiB。資料只在你的裝置上分析。</span></div>
+<details><summary>只有 YouTube 直播網址？</summary><p class="caption">先確認直播存檔有開放聊天室重播。在已安裝 yt-dlp 的電腦執行下列指令，把引號內的網址換成直播網址，再匯入產生的 .live_chat.json。</p><code>yt-dlp --skip-download --write-subs --sub-langs live_chat --no-playlist "直播網址"</code></details></div>
 <div id="demoPane" class="source-row" hidden><span>20 分鐘模擬直播，包含平常聊天與多人同時反應的片段。</span><button id="demoBtn" class="secondary">載入示範</button></div>
 
 <p id="sourceState" class="status" role="status" hidden></p></section>
@@ -19,7 +13,7 @@
 <div class="chart-title"><h3>精華熱度</h3><span><i class="legend"></i>評分 <i class="legend threshold"></i>門檻</span></div>
 <label class="compare"><input id="compare" type="checkbox"> 疊圖比較均衡權重</label><div class="plot"><canvas id="chart" tabindex="0" role="slider" aria-label="時間軸，使用左右鍵查看相鄰時段" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></canvas><div id="tooltip" hidden></div></div><p class="caption" id="chartCaption">點選曲線或片段，查看該時段的評分組成。</p>
 </section>
-<section class="panel results"><div class="panel-head"><div><div class="kicker">剪輯清單</div><h2>候選精華</h2></div><button id="export" class="secondary">匯出 JSON</button></div><div id="list"></div></section><section id="outputs" hidden class="panel results"><h2>完成的檔案</h2><p class="caption">請在一小時內下載；服務重啟或累積超過五筆工作時，較早的檔案會清除。</p><div id="files"></div></section>
+<section class="panel results"><div class="panel-head"><div><div class="kicker">精華清單</div><h2>候選精華</h2></div><button id="export" class="secondary">匯出 JSON</button></div><div id="list"></div></section>
 </div><aside><section class="panel params"><div class="panel-head"><h2>評分設定</h2><button id="reset" class="link">還原預設</button></div><label class="fieldlabel" for="preset">評分偏好</label><select id="preset"><option value="balanced">均衡模式</option><option value="burst">優先找爆點</option><option value="reaction">優先找情緒反應</option><option value="custom" disabled>自訂權重</option></select>
 <div id="weights"></div><p class="caption" id="weightHint">權重會按比例換算，總和可超過 100。</p>
 <hr><div id="cutoff"></div><details><summary>視窗、片長與關鍵字</summary>
