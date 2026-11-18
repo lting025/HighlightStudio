@@ -1,3 +1,0 @@
-gunicorn>=23,<28
-yt-dlp[default]>=2025.11.12
-faster-whisper>=1.1,<2
