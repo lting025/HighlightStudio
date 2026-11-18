@@ -1,76 +1,63 @@
-# 拾刻｜GitHub Pages ＋ Render 部署版
+# 拾刻 Highlight Studio｜直播聊天室分析
 
-開啟網站即可讀取一場公開 YouTube 直播的聊天室重播，調整精華評分，並對選中的片段產生 MP4 或 MP4＋SRT。GitHub Pages 在瀏覽器執行聊天室分析。Render 執行 yt-dlp、FFmpeg 和多語言 faster-whisper tiny。適合自己使用或少數共用同一金鑰的人。
+拾刻幫你從一場直播裡找出值得回看的幾分鐘。匯入聊天室紀錄後，工具會把觀眾反應畫成熱度曲線，列出候選精華的起訖時間。點選任一片段，就能看到當時有多少人發言，以及哪些反應把分數推高。
 
-## 1. 上傳專案到 GitHub
+整個分析都在瀏覽器內完成。聊天室檔案留在使用者的裝置上，可以離線使用，也可以把同一份網頁放上 GitHub Pages。
 
-建立一個 repository，例如 `highlight-studio`。完整解壓縮本套件，把其中的 `docs/`、`backend/`、`Dockerfile`、`README.md` 及附帶的設定檔放到儲存庫根目錄並 commit。從 GitHub 網頁上傳時，可把解壓縮後的檔案與兩個子資料夾一起拖進 **Add file → Upload files**。確認首頁直接看得到 `Dockerfile`，並能開啟 `docs/index.html`。本套件已包含前端與後端所需程式，原本的 Windows ZIP 可以留在電腦上。
+## 第一次使用
 
-## 2. 打開 GitHub Pages
+1. 完整解壓縮專案，雙擊 `docs/index.html`。頁面會自動載入一場 20 分鐘的示範直播。
+2. 在「候選精華」點選排名第一的片段，從「分數拆解」查看各項訊號貢獻了幾分。
+3. 勾選「疊圖比較均衡權重」，把「評分偏好」切換成「優先找情緒反應」。比較兩條曲線，就能看到哪些時段因為觀眾一起笑或驚呼而提高了排名。
+4. 按「選擇聊天室檔案」換成自己的資料。調整完入選門檻後，按「匯出 JSON」保存片段清單。若資料含可辨識的 YouTube 影片 ID，可按「回看此段」跳到對應時間。
 
-在儲存庫進入 **Settings → Pages → Build and deployment**。選 **Deploy from a branch**，指定 `main` 和 `/docs`，按 **Save**。若預設分支名稱不同，選實際分支。若使用 GitHub Free，這個做法可使用公開儲存庫。
+## 準備聊天室紀錄
 
-假設帳號為 `lting025`，儲存庫叫 `highlight-studio`，預設網站網址為 `https://lting025.github.io/highlight-studio/`。請以 Pages 顯示的實際網址為準。
+支援 yt-dlp 的 `.live_chat.json`、JSON 訊息陣列，以及每行一筆訊息的 JSONL。單一檔案上限為 **128 MiB**。
 
-## 3. 建立 Render 後端
+**手上只有 YouTube 網址時**，先確認直播存檔有開放聊天室重播。在已安裝 yt-dlp 的電腦上執行以下指令，把引號內的文字換成實際網址。指令只下載聊天室紀錄，完成後再從工作台選取產生的 `.live_chat.json`。[yt-dlp 專案與安裝說明](https://github.com/yt-dlp/yt-dlp#installation)
 
-1. 登入 Render Dashboard，選 **New → Web Service**，連接 GitHub，選擇這個 repository。
-2. 選實際分支，**Language / Runtime** 選 **Docker**；**Root Directory** 留白，**Dockerfile Path** 使用根目錄的 `./Dockerfile`。容器已依 Render 提供的 PORT 監聽 0.0.0.0，不需自行填啟動命令。
-3. 在 **Environment** 新增下表的兩個變數。**Health Check Path** 可設為 `/healthz`。服務採單一執行個體、單一 Gunicorn worker。
-4. 選實例規格並檢查畫面上的費用，再建立服務。免費規格適合先檢查連線；字幕是否跑得完取決於可用記憶體及 CPU。若要處理字幕，先試短片段。出現記憶體不足時再調整規格。
-5. 等服務狀態變成 **Live**。開啟自己的 `https://服務名稱.onrender.com/healthz`。看到 `{"ok": true}` 表示後端已啟動。這一步尚未測試 YouTube 或字幕模型。
-
-| 變數名稱 | 值 |
-|---|---|
-| `PAGES_ORIGIN` | Pages 網址的協定與網域，例如 `https://lting025.github.io`。儲存庫路徑 `/highlight-studio/` 不用填。自訂網域則填該網站實際的 origin。 |
-| `STUDIO_KEY` | 自行產生、至少 32 個可列印 ASCII 字元的隨機密鑰。可使用密碼管理器，或執行下方命令。這是工作台自訂的密鑰，無需申請 GitHub 或 Render API token。 |
-
-在 Windows 電腦已裝 Python 時，可用這行產生密鑰，並保存在自己的密碼管理器：
-
-```powershell
-py -c "import secrets; print(secrets.token_urlsafe(32))"
+```sh
+yt-dlp --skip-download --write-subs --sub-langs live_chat --no-playlist "直播存檔網址"
 ```
 
-## 4. 讓網頁呼叫後端
+**自行整理紀錄時**，可將以下範例存成 `chat.json` 匯入。時間單位是從開播起算的秒數。同一位觀眾請使用固定代號，工具才能辨識重複發言。
 
-開啟 GitHub Pages 網站，在「連接雲端後端」填入 Render 的 HTTPS 網址和相同的 STUDIO_KEY，按「連線」。網址只填到網域結尾。連線金鑰在分頁記憶體中使用，重新整理後須重填。
-
-如果想預填後端網址，在 GitHub 修改 `docs/config.js` 後 commit：
-
-```js
-window.STUDIO_API_URL = 'https://你的服務名稱.onrender.com';
+```json
+{
+  "video": { "title": "決勝局", "duration": 120 },
+  "messages": [
+    { "timestamp": 5, "author": "觀眾A", "text": "開場了" },
+    { "timestamp": 81, "author": "觀眾A", "text": "逆轉！" },
+    { "timestamp": 82, "author": "觀眾B", "text": "太神了" },
+    { "timestamp": 83, "author": "觀眾C", "text": "777" },
+    { "timestamp": 84, "author": "觀眾D", "text": "笑死 😂" }
+  ]
+}
 ```
 
-此檔案會公開。金鑰只填在 Render 的 Environment 與自己的連線表單，請勿把金鑰、cookies.txt 或 .env 放進 GitHub。
+## 精華怎麼評分？
 
-## 5. 驗收整條流程
+均衡模式使用下列四項訊號，合計換算為 0～100 分。每個分析視窗內，同一位觀眾重複貼相同內容只算一次有效發言，每人最多計入兩則不同內容。
 
-1. 網頁右上出現「雲端已連線」後，貼上有聊天室重播的公開直播存檔，按「讀取聊天室」。
-2. 選一個有說話聲的短片段，按「產生 MP4＋SRT」。首次轉錄會下載多語言 tiny 模型。中文、日文等語言由模型自動判斷。
-3. 到「完成的檔案」分別按「下載 MP4」和「下載 SRT」。字幕時間從剪輯片段開頭起算。若音檔沒有辨識出語音，仍可取得 MP4。
-4. 保留此分頁直到下載完成。此個人版同時處理一項工作，單段最多十分鐘、最高 720p。工作結果保留最多一小時或最近五筆；服務重啟後須重跑。請將要保留的產出下載到自己的裝置。
+| 訊號 | 預設權重 | 評分依據 |
+| --- | ---: | --- |
+| 熱度突增 | 40% | 有效發言量比前幾個時段增加多少，並考量是否有多位觀眾參與。 |
+| 參與廣度 | 30% | 有多少不同觀眾發言，並與這場直播中較熱鬧的時段相比。 |
+| 情緒反應 | 25% | 有多少不同觀眾使用反應關鍵字或表情，占該時段發言觀眾的比例。 |
+| 付費支持 | 5% | 有多少不同觀眾送出付費訊息或貼圖，每人在同一視窗計一次。 |
 
-## 前後端如何連線
+預設以 **30 秒**為一個分析視窗，每 **10 秒**評一次分。達到 **48 分**的時段依分數排序，往前保留 **15 秒**、往後保留 **10 秒**。延伸後若與已入選的高分片段重疊，就跳過該段，最多選出 **6 段**。想保留逆轉前的鋪陳，可以在「視窗、片長與關鍵字」拉長「往前保留」。
 
-瀏覽器直接呼叫 Render 的 HTTPS 網址。瀏覽器會先用 OPTIONS 檢查跨來源授權；後端允許指定的 PAGES_ORIGIN 使用 Authorization 和 Content-Type。後端另外驗證 `Authorization: Bearer <STUDIO_KEY>`，這樣只有知道密鑰的人可以開始工作或讀取結果。
+## 匯出結果
 
-| 路徑 | 用途 |
-|---|---|
-| `GET /healthz` | 公開健康檢查 |
-| `GET /api/status` | 驗證連線金鑰 |
-| `POST /api/jobs` | 以影片 ID 建立 chat、clip 或 subtitles 工作，回傳 HTTP 202 及 job 編號 |
-| `GET /api/jobs/{job}` | 查詢工作進度、錯誤或可下載檔案 |
-| `GET /api/jobs/{job}/{chat、mp4 或 srt}` | 取得所選檔案 |
+匯出的 JSON 包含分析參數、訊息總數，以及每段精華的排名、起訖秒數、分數與各項貢獻。`start` 和 `end` 是含前後保留時間的回看範圍；`window_start` 和 `window_end` 是實際算分的時段。
 
-## 常見問題
+## 發布到 GitHub Pages
 
-| 現象 | 檢查 |
-|---|---|
-| 後端網址開啟顯示錯誤 | 請開啟 /healthz；查看 Render 的部署狀態和 Logs。 |
-| /healthz 正常，但前端連不到 | 在 Pages 頁面的瀏覽器主控台輸入 `location.origin`，將結果填入 Render 的 PAGES_ORIGIN 並套用。確認前端使用 Render 的 HTTPS 網址。 |
-| 401 或提示金鑰錯誤 | 比對 Render 的 STUDIO_KEY 和工作台輸入值。 |
-| 409 或提示正在處理 | 目前已有一筆任務執行中，等它完成後再送出。 |
-| 讀不到聊天室 | 確認該存檔能播放且有聊天室重播。YouTube 可能限制雲端 IP，這時 HTTPS 與 CORS 可以都正常。已取得的聊天室檔仍可直接匯入。 |
-| 模型載入失敗或服務重啟 | 查看 Render Logs 是否有記憶體不足或連不到模型來源。先測短片段；需要更多資源時再選相應實例。 |
+1. 將本 README 與整個 `docs/` 資料夾放在儲存庫根目錄，確認首頁路徑為 `docs/index.html`。
+2. 開啟儲存庫的 **Settings → Pages**，在 **Source** 選擇 **Deploy from a branch**。
+3. 選擇存放專案的分支（例如 `main`）及 **/docs**，按 **Save**。
+4. 部署完成後，從 Pages 設定頁開啟網站。訪客可以先玩示範資料，也可以匯入自己的聊天室紀錄。
 
-[GitHub Pages 發布來源](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) · [Render Docker](https://render.com/docs/docker) · [Render Web Services](https://render.com/docs/web-services) · [Render 免費實例限制](https://render.com/docs/free) · [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+[GitHub Pages 發布來源設定說明](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
