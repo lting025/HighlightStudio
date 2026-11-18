@@ -6,3 +6,5 @@
 #filePane details { margin-top: 10px; }
 #filePane details p { margin: 8px 0; }
 #filePane code { display: block; overflow-wrap: anywhere; background: #f1f5f2; padding: 8px 12px; border-radius: 6px; }
+#urlPane .caption { margin-top: 8px; }
+#requestLink { display: inline-block; margin-top: 8px; text-decoration: none; }

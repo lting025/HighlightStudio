@@ -120,6 +120,9 @@ const StudioModel = (() => {
       windows.push({start,end,count:right-left,users:known,effective,reactions:reacts.size,paid:paid.size});
       if(end===data.duration) break;
     }
+    return scoreSignals(windows,w);
+  }
+  function scoreSignals(windows,w) {
     const active=windows.filter(x=>x.effective);
     const typical=quantile(active.map(x=>x.effective),.5);
     const broad=Math.max(5,quantile(active.map(x=>x.users),.90));
@@ -152,6 +155,6 @@ const StudioModel = (() => {
     }
     return {points,clips};
   }
-  return {defaults,labels,videoId,parseChat,demo,features,rank};
+  return {defaults,labels,videoId,parseChat,demo,features,scoreSignals,rank};
 })();
 if(typeof module!=='undefined') module.exports=StudioModel;

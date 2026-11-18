@@ -6,6 +6,7 @@ const cfg=cloneDefaults();
 let reference=[],source=null, windows=[], result={points:[],clips:[]}, selected=0, sourceKind='demo';
 let busy=false, recalculating=false;
 let sourceSerial=0, worker=null, localData=null, wordTimer;
+let githubReport=null;
 const presets={balanced:[40,30,25,5],burst:[65,20,12,3],reaction:[20,25,50,5]};
 const fmt=n=>Number(n).toLocaleString('zh-TW');
 const clock=t=>{let n=Math.max(0,Math.floor(t)); return (n>=3600?Math.floor(n/3600)+':':'')+String(Math.floor(n/60)%60).padStart(2,'0')+':'+String(n%60).padStart(2,'0');};
@@ -20,6 +21,7 @@ function locks(){
 }
 function tab(name){
   for(const b of document.querySelectorAll('[data-tab]')) b.setAttribute('aria-pressed',String(b.dataset.tab===name));
+  $('urlPane').hidden=name!=='url';
   $('filePane').hidden=name!=='file';
   $('demoPane').hidden=name!=='demo';
   if(!busy&&!recalculating) status('');
@@ -59,8 +61,11 @@ function accepted(payload){
   source=payload.meta;windows=payload.windows;
   reference=windows.map(x=>x.signals.reduce((sum,value,i)=>sum+value*model.defaults.weights[i],0));
   if(payload.kind!=='features'){sourceKind=payload.kind==='demo'?'demo':payload.sourceKind;selected=-1;}
+  if(payload.kind!=='features' && sourceKind!=='github') githubReport=null;
+  $('words').readOnly=Boolean(githubReport);
+  $('wordsHint').textContent=githubReport?'網址分析採用預設關鍵字。匯入原始聊天室檔案可自訂關鍵字。':'用逗號分隔。自訂表情另計為反應。';
   $('title').textContent=source.title;$('messages').textContent=fmt(source.count);
-  $('sourceTag').textContent={demo:'示範資料',file:'匯入檔案'}[sourceKind];
+  $('sourceTag').textContent={demo:'示範資料',file:'匯入檔案',github:'YouTube 網址'}[sourceKind];
   if(payload.kind!=='features')status(source.skipped?'已略過 '+fmt(source.skipped)+' 筆無效紀錄。':'');
   rerank();locks();
 }
@@ -73,6 +78,10 @@ if(location.protocol!=='file:' && typeof Worker!=='undefined'){
 function compute(task){
   if(task.kind==='features'&&!source)return;
   const serial=++sourceSerial;recalculating=true;locks();
+  if(task.kind==='features' && githubReport){
+    accepted({serial,kind:'features',meta:githubReport.meta,windows:reportWindows(githubReport,cfg.window)});
+    return;
+  }
   const meta={kind:task.kind,sourceKind:task.sourceKind};
   if(worker){pending.set(serial,meta);worker.postMessage({...task,cfg,serial});return;}
   setTimeout(()=>{
@@ -196,6 +205,6 @@ $('file').onchange=async()=>{
   catch(e){busy=false;locks();status(e.message,true);}
 };
 $('demoBtn').onclick=()=>{busy=true;compute({kind:'demo'});};
-tab('file');
+tab('url');
 busy=true;
 compute({kind:'demo'});

@@ -1,9 +1,13 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>拾刻｜直播聊天室分析</title><link rel="stylesheet" href="style.css"><script defer src="model.js"></script><script defer src="app.js"></script></head>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>拾刻｜直播聊天室分析</title><link rel="stylesheet" href="style.css"><script defer src="model.js"></script><script defer src="app.js"></script><script defer src="github.js"></script></head>
 <body><header><div class="shell mast"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>拾刻 <span class="brand-en">Highlight Studio</span></div></div></header>
 <main class="shell"><div class="heading"><div><h1>直播聊天室分析</h1><p>載入聊天室，從觀眾反應找到值得回看的時刻。</p></div></div>
-<section class="source panel" aria-label="聊天室來源"><div class="source-tabs" role="group" aria-label="選擇資料來源"><button data-tab="file" aria-pressed="true">匯入聊天室</button><button data-tab="demo">示範資料</button></div>
-<div id="filePane"><div class="source-row"><label class="filepick">選擇聊天室檔案<input type="file" id="file" accept=".json,.jsonl,.ndjson,application/json"></label><span>JSON 或 JSONL，最大 128 MiB。資料只在你的裝置上分析。</span></div>
+<section class="source panel" aria-label="聊天室來源"><div class="source-tabs" role="group" aria-label="選擇資料來源"><button data-tab="url" aria-pressed="true">YouTube 網址</button><button data-tab="file">匯入聊天室</button><button data-tab="demo">示範資料</button></div>
+<div id="urlPane">
+<form id="requestForm" class="source-row"><label for="videoUrl" class="sr">YouTube 直播存檔網址</label><input id="videoUrl" type="url" placeholder="貼上 YouTube 直播存檔網址" required><button class="primary">用 GitHub 分析</button></form>
+<p class="caption">限公開且有聊天室重播的直播存檔。送出後，請用專案維護者帳號在 GitHub 按 Create，回到這頁等待。影片網址與時段統計會公開。</p>
+<p id="requestState" class="status" role="status" hidden></p><a id="requestLink" class="secondary" target="_blank" rel="noopener noreferrer" hidden></a>
+</div><div id="filePane" hidden><div class="source-row"><label class="filepick">選擇聊天室檔案<input type="file" id="file" accept=".json,.jsonl,.ndjson,application/json"></label><span>JSON 或 JSONL，最大 128 MiB。資料只在你的裝置上分析。</span></div>
 <details><summary>只有 YouTube 直播網址？</summary><p class="caption">先確認直播存檔有開放聊天室重播。在已安裝 yt-dlp 的電腦執行下列指令，把引號內的網址換成直播網址，再匯入產生的 .live_chat.json。</p><code>yt-dlp --skip-download --write-subs --sub-langs live_chat --no-playlist "直播網址"</code></details></div>
 <div id="demoPane" class="source-row" hidden><span>20 分鐘模擬直播，包含平常聊天與多人同時反應的片段。</span><button id="demoBtn" class="secondary">載入示範</button></div>
 
@@ -18,6 +22,6 @@
 <div id="weights"></div><p class="caption" id="weightHint">權重會按比例換算，總和可超過 100。</p>
 <hr><div id="cutoff"></div><details><summary>視窗、片長與關鍵字</summary>
 <label class="fieldlabel" for="window">分析視窗</label><select id="window"><option value="15">15 秒</option><option value="30" selected>30 秒</option><option value="60">60 秒</option></select>
-<div id="limits"></div><label class="fieldlabel" for="words">反應關鍵字</label><textarea id="words" rows="3" maxlength="1000"></textarea><p class="caption">用逗號分隔。自訂表情另計為反應。</p></details>
+<div id="limits"></div><label class="fieldlabel" for="words">反應關鍵字</label><textarea id="words" rows="3" maxlength="1000"></textarea><p id="wordsHint" class="caption">用逗號分隔。自訂表情另計為反應。</p></details>
 </section><section class="panel breakdown"><div class="kicker">分數拆解</div><h2 id="detailTitle">時段明細</h2><p id="detailFacts" class="caption"></p><div id="parts"></div><p class="caption" id="explain"></p></section></aside></div>
 </main></body></html>
